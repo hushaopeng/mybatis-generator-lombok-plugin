@@ -19,6 +19,11 @@ import java.util.Map.Entry;
  */
 public class LombokPlugin extends PluginAdapter {
 
+    private static final String CALL_SUPER_STR = "callSuper";
+    private static final String CALL_SUPER_PARAM = "(callSuper = true)";
+
+    private boolean callSuper = false;
+
     private final Collection<Annotations> annotations;
 
     /**
@@ -126,7 +131,7 @@ public class LombokPlugin extends PluginAdapter {
     private void addDataAnnotation(TopLevelClass topLevelClass) {
         for (Annotations annotation : annotations) {
             topLevelClass.addImportedType(annotation.javaType);
-            topLevelClass.addAnnotation(annotation.name);
+            topLevelClass.addAnnotation(callSuper ? (annotation.supportCallSuper ? annotation.name + CALL_SUPER_PARAM : annotation.name) : annotation.name);
         }
     }
 
@@ -146,6 +151,8 @@ public class LombokPlugin extends PluginAdapter {
                 if (annotation != null) {
                     annotations.add(annotation);
                     annotations.addAll(Annotations.getDependencies(annotation));
+                } else if (CALL_SUPER_STR.equals(paramName)) {
+                    callSuper = true;
                 }
             }
         }
@@ -161,22 +168,25 @@ public class LombokPlugin extends PluginAdapter {
     }
 
     private enum Annotations {
-        DATA("data", "@Data", "lombok.Data"),
-        BUILDER("builder", "@Builder", "lombok.Builder"),
-        ALL_ARGS_CONSTRUCTOR("allArgsConstructor", "@AllArgsConstructor", "lombok.AllArgsConstructor"),
-        NO_ARGS_CONSTRUCTOR("noArgsConstructor", "@NoArgsConstructor", "lombok.NoArgsConstructor"),
-        TO_STRING("toString", "@ToString", "lombok.ToString");
+        DATA("data", "@Data", "lombok.Data", false),
+        BUILDER("builder", "@Builder", "lombok.Builder", false),
+        ALL_ARGS_CONSTRUCTOR("allArgsConstructor", "@AllArgsConstructor", "lombok.AllArgsConstructor", false),
+        NO_ARGS_CONSTRUCTOR("noArgsConstructor", "@NoArgsConstructor", "lombok.NoArgsConstructor", false),
+        TO_STRING("toString", "@ToString", "lombok.ToString", true),
+        EQUALS_AND_HASH_CODE("equalsAndHashCode", "@EqualsAndHashCode", "lombok.EqualsAndHashCode", true);
 
 
         private final String paramName;
         private final String name;
         private final FullyQualifiedJavaType javaType;
+        private final boolean supportCallSuper;
 
 
-        Annotations(String paramName, String name, String className) {
+        Annotations(String paramName, String name, String className, boolean supportCallSuper) {
             this.paramName = paramName;
             this.name = name;
             this.javaType = new FullyQualifiedJavaType(className);
+            this.supportCallSuper = supportCallSuper;
         }
 
         private static Annotations getValueOf(String paramName) {
